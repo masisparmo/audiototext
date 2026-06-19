@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio2Text Master - Transkripsi Audio & Subtitel SRT</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts - Inter & Fira Code untuk log terminal -->
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .terminal-font {
+      font-family: 'Fira Code', monospace;
+    }
+    /* Keamanan tambahan: Menyembunyikan karakter API Key */
+    .hide-keys {
+      -webkit-text-security: disc !important;
+      text-security: disc !important;
+    }
+    /* Kustomisasi scrollbar untuk estetika modern */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased">
+
+  <!-- NOTIFIKASI TOAST CONTAINER -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3"></div>
+
+  <!-- HEADER UTAMA -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <!-- Logo SVG -->
+        <div class="bg-sky-500/10 p-2.5 rounded-xl border border-sky-500/20 text-sky-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg tracking-tight flex items-center gap-2">
+            Audio2Text Master <span class="text-xs bg-sky-500/20 text-sky-400 px-2.5 py-0.5 rounded-full font-semibold border border-sky-500/30">v3 Large</span>
+          </h1>
+          <p class="text-xs text-slate-400">Transkripsi Audio Pintar & Generator Subtitel .SRT (Sisi Klien)</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Status Indikator Database -->
+        <span id="db-status-badge" class="flex items-center gap-1.5 text-xs bg-amber-500/10 text-amber-400 px-3 py-1.5 rounded-lg border border-amber-500/20">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          Menghubungkan Database...
+        </span>
+        <span class="text-xs text-slate-500 hidden md:inline">Mentor Developer Workspace</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- WORKSPACE UTAMA -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- PANEL KIRI (4 Kolom): API Keys & Konfigurasi -->
+    <section class="lg:col-span-4 flex flex-col gap-6">
+      
+      <!-- Card Konfigurasi Keys -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-xl">
+        <div class="flex justify-between items-center">
+          <h2 class="font-semibold text-sm uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+            Manajemen API Keys
+          </h2>
+          <span class="text-xs text-slate-500">IndexedDB</span>
+        </div>
+        
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Masukkan satu atau beberapa API Key Groq Anda (pisahkan dengan tanda koma). Kunci akan dirotasi secara otomatis jika terkena pembatasan *Rate Limit*.
+        </p>
+
+        <!-- Input Area dengan Fitur Visibility Toggle -->
+        <div class="flex flex-col gap-1.5">
+          <div class="flex justify-between items-center">
+            <label for="keys-input" class="text-xs font-medium text-slate-300">API Key Groq (gsk_...):</label>
+            <!-- Tombol Toggle Masking Sensor -->
+            <button type="button" onclick="toggleKeyVisibility()" 
+              class="text-xs text-slate-400 hover:text-sky-400 flex items-center gap-1 transition-colors select-none focus:outline-none">
+              <span id="visibility-text">Tampilkan</span>
+              <svg id="visibility-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+              </svg>
+            </button>
+          </div>
+          <textarea id="keys-input" rows="4" 
+            class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs terminal-font text-slate-300 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors placeholder:text-slate-700 hide-keys"
+            placeholder="gsk_KeySatu123, gsk_KeyDua456, gsk_KeyTiga789"></textarea>
+        </div>
+
+        <!-- Tombol Simpan -->
+        <button id="btn-save-keys" onclick="handleSaveKeys()"
+          class="bg-sky-500 hover:bg-sky-600 text-slate-950 text-xs font-semibold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-500/10 active:scale-[0.98]">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+          Simpan API Keys
+        </button>
+
+        <!-- List Kunci Terdaftar -->
+        <div class="mt-2">
+          <h3 class="text-xs font-semibold text-slate-400 mb-2.5 flex justify-between">
+            <span>Daftar Kunci Aktif</span>
+            <span id="key-count" class="text-sky-400">0 Kunci</span>
+          </h3>
+          <div id="keys-list" class="flex flex-col gap-2 max-h-[180px] overflow-y-auto pr-1">
+            <!-- Render dinamis dari IndexedDB -->
+            <p class="text-xs text-slate-500 italic text-center py-4">Belum ada API Key yang tersimpan.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Parameter Tambahan -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-xl">
+        <h2 class="font-semibold text-sm uppercase tracking-wider text-slate-400 flex items-center gap-2">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+          Konfigurasi Model
+        </h2>
+
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div>
+            <label class="text-slate-400 block mb-1">Bahasa Deteksi</label>
+            <select id="lang-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 focus:outline-none focus:border-sky-500">
+              <option value="">Otomatis</option>
+              <option value="id">Indonesia</option>
+              <option value="en">Inggris (English)</option>
+              <option value="jv">Jawa</option>
+              <option value="su">Sunda</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">Suhu (Temperature)</label>
+            <select id="temp-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 focus:outline-none focus:border-sky-500">
+              <option value="0.0">0.0 (Sangat Akurat)</option>
+              <option value="0.2" selected>0.2 (Rekomendasi)</option>
+              <option value="0.6">0.6 (Lebih Kreatif)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL KANAN (8 Kolom): Transcriber & Preview -->
+    <section class="lg:col-span-8 flex flex-col gap-6">
+
+      <!-- Card Upload Workspace -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col gap-6">
+        
+        <!-- DROPZONE -->
+        <div id="dropzone" ondragover="event.preventDefault(); this.classList.add('border-sky-500', 'bg-sky-500/5')" ondragleave="this.classList.remove('border-sky-500', 'bg-sky-500/5')" ondrop="handleDrop(event)"
+          class="border-2 border-dashed border-slate-800 hover:border-slate-700 bg-slate-950/40 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all group">
+          <input type="file" id="file-input" class="hidden" accept="audio/*" onchange="handleFileSelect(event)">
+          <div onclick="document.getElementById('file-input').click()" class="flex flex-col items-center justify-center gap-3 w-full">
+            <div class="bg-slate-900 p-4 rounded-full border border-slate-800 group-hover:border-slate-700 group-hover:scale-105 transition-all text-slate-400 group-hover:text-sky-400">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+              </svg>
+            </div>
+            <div class="text-center">
+              <p class="text-sm font-medium text-slate-200">Drag & Drop file audio Anda di sini</p>
+              <p class="text-xs text-slate-500 mt-1">Mendukung format M4A, MP3, WAV, AAC, OGG (Semua ukuran)</p>
+            </div>
+            <button class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold py-2 px-4 rounded-xl mt-1 transition-colors">
+              Pilih Berkas Manual
+            </button>
+          </div>
+        </div>
+
+        <!-- INFO FILE YANG DIUNGGAH (Dinamis) -->
+        <div id="file-info-panel" class="hidden bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="bg-sky-500/10 p-3 rounded-xl border border-sky-500/20 text-sky-400">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+            </div>
+            <div>
+              <h3 id="info-name" class="font-semibold text-sm text-slate-200 truncate max-w-[280px] md:max-w-[400px]">nama_file_audio.m4a</h3>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Ukuran: <span id="info-size" class="text-slate-400 font-medium">--</span> | 
+                Durasi: <span id="info-duration" class="text-slate-400 font-medium">--</span>
+              </p>
+            </div>
+          </div>
+          <div class="flex flex-col items-end gap-1 w-full md:w-auto">
+            <span id="info-chunk-estimate" class="text-[11px] bg-indigo-500/15 text-indigo-400 px-2.5 py-1 rounded-full font-medium border border-indigo-500/25">
+              -- Potongan Estimasi
+            </span>
+          </div>
+        </div>
+
+        <!-- TOMBOL AKSI UTAMA -->
+        <div class="flex gap-3">
+          <button id="btn-start" onclick="handleStartTranscription()" disabled
+            class="flex-1 bg-slate-800 text-slate-500 cursor-not-allowed text-sm font-semibold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Mulai Transkripsi Audio
+          </button>
+          
+          <button id="btn-reset" onclick="resetState()" class="hidden bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 text-sm font-semibold px-5 rounded-xl transition-colors">
+            Reset
+          </button>
+        </div>
+
+        <!-- PROGRES PELACAK CHUNKS -->
+        <div id="chunk-tracker-container" class="hidden flex flex-col gap-3 border-t border-slate-800 pt-5">
+          <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status Pemrosesan Potongan Audio</h3>
+          <div id="chunk-list" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- Chunk progress boxes render dynamically -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- KONSOL LOG TERMINAL (GAYA DEV) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col h-[250px]">
+        <div class="bg-slate-950 px-4 py-2 flex justify-between items-center border-b border-slate-800">
+          <span class="text-xs font-bold tracking-wide text-slate-400 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span class="ml-1 uppercase text-[10px]">Developer console log</span>
+          </span>
+          <button onclick="clearConsole()" class="text-[10px] text-slate-500 hover:text-slate-300 uppercase transition-colors">Hapus Log</button>
+        </div>
+        <div id="terminal-log" class="flex-1 p-4 overflow-y-auto terminal-font text-xs text-sky-400 flex flex-col gap-1.5 bg-slate-950/80">
+          <p class="text-slate-500 italic">[SYSTEM] Terminal siap mendengarkan peristiwa pemrosesan...</p>
+        </div>
+      </div>
+
+      <!-- PRATINJAU SRT & DOWNLOAD -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col gap-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="font-semibold text-sm uppercase tracking-wider text-slate-400">Pratinjau Subtitel SRT</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Hasil transkripsi real-time tingkat kalimat</p>
+          </div>
+          <!-- Unduh Button -->
+          <button id="btn-download" disabled onclick="downloadSrt()"
+            class="bg-slate-800 text-slate-500 cursor-not-allowed text-xs font-semibold py-2 px-4 rounded-xl transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Unduh Berkas .SRT
+          </button>
+        </div>
+
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 h-[250px] overflow-y-auto">
+          <pre id="srt-preview" class="terminal-font text-xs text-slate-400 leading-relaxed whitespace-pre-wrap">Pratinjau SRT kosong. Unggah file audio dan mulai transkripsi.</pre>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800 bg-slate-950 py-6 px-6 text-center text-xs text-slate-600 mt-12">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+      <p>&copy; 2026 Audio2Text Master. Dibangun dengan prinsip SOLID, Clean Code, dan Web Audio API.</p>
+      <p class="flex items-center gap-1">
+        <span>Didukung oleh</span>
+        <a href="https://groq.com" target="_blank" class="text-slate-400 hover:text-sky-400 transition-colors font-semibold">Groq Whisper API</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- LOGIC UTAMA JAVASCRIPT -->
+  <script>
+    // === DEKLARASI DATABASE INDEXEDDB ===
+    const DB_NAME = 'GroqTranscriberDB';
+    const STORE_NAME = 'api_keys';
+    const DB_VERSION = 1;
+
+    // === DEKLARASI STATE UTAMA ===
+    const state = {
+      apiKeys: [],       // Array of { key: string, status: 'active'|'cooldown'|'failed', cooldownUntil: timestamp }
+      currentKeyIndex: 0,
+      selectedFile: null,
+      audioBuffer: null,
+      fileDuration: 0,
+      fileSize: 0,
+      chunks: [],        // Array of { id, start, end, status: 'pending'|'processing'|'completed'|'failed', blob: Blob, text: '', segments: [] }
+      isProcessing: false,
+      masterSegments: [], // Gabungan semua segmen dari Groq
+      audioContext: null,
+      keysVisible: false // Status visibilitas input API keys (default: tersembunyi)
+    };
+
+    // === SETUP AWAL SAAT WINDOW DIUNGGAH ===
+    window.addEventListener('DOMContentLoaded', () => {
+      initDatabase();
+      startCooldownTimer();
+    });
+
+    // === TOGGLE VISIBILITY UNTUK INPUT API KEYS ===
+    function toggleKeyVisibility() {
+      state.keysVisible = !state.keysVisible;
+      const input = document.getElementById('keys-input');
+      const text = document.getElementById('visibility-text');
+      const icon = document.getElementById('visibility-icon');
+
+      if (state.keysVisible) {
+        // Tampilkan Teks Kunci
+        input.classList.remove('hide-keys');
+        text.innerText = 'Sembunyikan';
+        icon.innerHTML = `
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"></path>
+        `;
+      } else {
+        // Sembunyikan dengan bulatan sensor
+        input.classList.add('hide-keys');
+        text.innerText = 'Tampilkan';
+        icon.innerHTML = `
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+        `;
+      }
+    }
+
+    // === INISIALISASI INDEXEDDB ===
+    function initDatabase() {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+        }
+      };
+
+      request.onsuccess = async (e) => {
+        updateDbStatus(true, 'Database IndexedDB Terhubung');
+        await loadKeysFromDB();
+      };
+
+      request.onerror = (e) => {
+        updateDbStatus(false, 'Database IndexedDB Gagal Dimuat');
+        logToConsole(`[ERROR] Gagal membuka database IndexedDB: ${e.target.error}`);
+        showToast('IndexedDB gagal dibuka. Kunci API tidak dapat dimuat otomatis.', 'error');
+      };
+    }
+
+    function updateDbStatus(isSuccess, text) {
+      const badge = document.getElementById('db-status-badge');
+      if (isSuccess) {
+        badge.className = "flex items-center gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/20";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> ${text}`;
+      } else {
+        badge.className = "flex items-center gap-1.5 text-xs bg-rose-500/10 text-rose-400 px-3 py-1.5 rounded-lg border border-rose-500/20";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span> ${text}`;
+      }
+    }
+
+    // === MEMBACA KUNCI DARI DATABASE ===
+    async function loadKeysFromDB() {
+      try {
+        const keys = await getKeysFromStore();
+        state.apiKeys = keys.map(k => ({
+          key: k.key,
+          status: k.status || 'active',
+          cooldownUntil: k.cooldownUntil || 0
+        }));
+        
+        // Populate ke input textarea
+        const keysInput = document.getElementById('keys-input');
+        keysInput.value = state.apiKeys.map(k => k.key).join(', ');
+        
+        updateKeyUI();
+      } catch (err) {
+        logToConsole(`[ERROR] Gagal memuat kunci dari IndexedDB: ${err.message}`);
+      }
+    }
+
+    function getKeysFromStore() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onsuccess = (e) => {
+          const db = e.target.result;
+          const transaction = db.transaction(STORE_NAME, 'readonly');
+          const store = transaction.objectStore(STORE_NAME);
+          const getReq = store.getAll();
+          getReq.onsuccess = () => resolve(getReq.result);
+          getReq.onerror = () => reject(getReq.error);
+        };
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    // === MENYIMPAN KUNCI BARU ===
+    async function handleSaveKeys() {
+      const input = document.getElementById('keys-input').value;
+      const parsedKeys = input.split(',')
+        .map(k => k.trim())
+        .filter(k => k.startsWith('gsk_')); // Validasi prefix Groq API Key
+
+      if (parsedKeys.length === 0) {
+        showToast('Format API Key salah. Harus dimulai dengan "gsk_"', 'error');
+        return;
+      }
+
+      // Format baru untuk IndexedDB
+      const keysToSave = parsedKeys.map(k => {
+        // Cek jika key sudah ada untuk mempertahankan status cooldown/gagal jika tidak ingin direset
+        const existing = state.apiKeys.find(ek => ek.key === k);
+        return {
+          key: k,
+          status: existing ? existing.status : 'active',
+          cooldownUntil: existing ? existing.cooldownUntil : 0
+        };
+      });
+
+      try {
+        await saveKeysToStore(keysToSave);
+        state.apiKeys = keysToSave;
+        updateKeyUI();
+        showToast(`${keysToSave.length} API Key berhasil disimpan ke IndexedDB!`, 'success');
+        logToConsole(`[SYSTEM] Berhasil memperbarui ${keysToSave.length} kunci di IndexedDB.`);
+      } catch (err) {
+        logToConsole(`[ERROR] Gagal menyimpan kunci ke DB: ${err.message}`);
+        showToast('Terjadi kesalahan penyimpanan DB.', 'error');
+      }
+    }
+
+    function saveKeysToStore(keys) {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onsuccess = (e) => {
+          const db = e.target.result;
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          
+          const clearReq = store.clear();
+          clearReq.onsuccess = () => {
+            let done = 0;
+            if (keys.length === 0) return resolve();
+            keys.forEach(k => {
+              const addReq = store.add(k);
+              addReq.onsuccess = () => {
+                done++;
+                if (done === keys.length) resolve();
+              };
+              addReq.onerror = () => reject(addReq.error);
+            });
+          };
+          clearReq.onerror = () => reject(clearReq.error);
+        };
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    // === UPDATE UI KUNCI API ===
+    function updateKeyUI() {
+      const listContainer = document.getElementById('keys-list');
+      const countBadge = document.getElementById('key-count');
+      
+      countBadge.innerText = `${state.apiKeys.length} Kunci`;
+      listContainer.innerHTML = '';
+
+      if (state.apiKeys.length === 0) {
+        listContainer.innerHTML = '<p class="text-xs text-slate-500 italic text-center py-4">Belum ada API Key yang tersimpan.</p>';
+        toggleStartButtonState();
+        return;
+      }
+
+      state.apiKeys.forEach((k, index) => {
+        const masked = maskKey(k.key);
+        let statusBadge = '';
+        let itemClass = 'border-slate-800 bg-slate-950/40';
+
+        if (k.status === 'active') {
+          statusBadge = `<span class="flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">Aktif</span>`;
+        } else if (k.status === 'cooldown') {
+          const remaining = Math.ceil((k.cooldownUntil - Date.now()) / 1000);
+          statusBadge = `<span class="flex items-center gap-1 text-[10px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Cooldown (${remaining}s)</span>`;
+          itemClass = 'border-amber-500/20 bg-amber-500/5';
+        } else {
+          statusBadge = `<span class="flex items-center gap-1 text-[10px] bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded border border-rose-500/20">Gagal/Error</span>`;
+          itemClass = 'border-rose-500/20 bg-rose-500/5';
+        }
+
+        const div = document.createElement('div');
+        div.className = `border rounded-xl p-2.5 flex justify-between items-center text-xs ${itemClass}`;
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-slate-500 font-semibold">#${index+1}</span>
+            <span class="terminal-font text-slate-300 font-medium">${masked}</span>
+          </div>
+          ${statusBadge}
+        `;
+        listContainer.appendChild(div);
+      });
+
+      toggleStartButtonState();
+    }
+
+    function maskKey(key) {
+      if (key.length <= 12) return '***';
+      return `${key.substring(0, 7)}...${key.substring(key.length - 4)}`;
+    }
+
+    // === TIMER BACKGROUND UNTUK COOLDOWN ===
+    function startCooldownTimer() {
+      setInterval(() => {
+        let changed = false;
+        const now = Date.now();
+        
+        state.apiKeys.forEach(k => {
+          if (k.status === 'cooldown' && now >= k.cooldownUntil) {
+            k.status = 'active';
+            changed = true;
+            logToConsole(`[SYSTEM] Kunci ${maskKey(k.key)} selesai masa pending dan siap digunakan.`);
+          }
+        });
+
+        if (changed || state.apiKeys.some(k => k.status === 'cooldown')) {
+          updateKeyUI();
+        }
+      }, 1000);
+    }
+
+    // === DROP & SELECT AUDIO FILE ===
+    function handleDrop(e) {
+      e.preventDefault();
+      document.getElementById('dropzone').classList.remove('border-sky-500', 'bg-sky-500/5');
+      
+      if (e.dataTransfer.files.length > 0) {
+        processSelectedFile(e.dataTransfer.files[0]);
+      }
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files.length > 0) {
+        processSelectedFile(e.target.files[0]);
+      }
+    }
+
+    function processSelectedFile(file) {
+      if (!file.type.startsWith('audio/') && !file.name.endsWith('.m4a') && !file.name.endsWith('.aac') && !file.name.endsWith('.mp3')) {
+        showToast('Format tidak didukung. Silakan unggah berkas audio.', 'error');
+        return;
+      }
+
+      state.selectedFile = file;
+      state.fileSize = file.size;
+      state.fileName = file.name;
+
+      // Reset audio buffer yang lama
+      state.audioBuffer = null;
+      state.chunks = [];
+
+      // Update Tampilan Info File
+      document.getElementById('info-name').innerText = file.name;
+      document.getElementById('info-size').innerText = formatBytes(file.size);
+      document.getElementById('info-duration').innerText = 'Menghitung durasi...';
+      document.getElementById('info-chunk-estimate').innerText = 'Menganalisis file...';
+      document.getElementById('file-info-panel').classList.remove('hidden');
+      document.getElementById('btn-reset').classList.remove('hidden');
+
+      logToConsole(`[INFO] Berkas terpilih: ${file.name} (${formatBytes(file.size)}). Membaca metadata audio...`);
+
+      // Mulai membaca dan mendecode durasi audio menggunakan AudioContext secara asinkron
+      decodeAudioDuration(file);
+    }
+
+    // === DECODE AUDIO DATA ===
+    function decodeAudioDuration(file) {
+      const reader = new FileReader();
+      
+      reader.onload = async (e) => {
+        const arrayBuffer = e.target.result;
+        
+        if (!state.audioContext) {
+          state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        logToConsole(`[INFO] ArrayBuffer terisi. Mendekode Audio data di browser...`);
+        showToast('Mendekode audio untuk ekstraksi durasi & gelombang...', 'info');
+
+        try {
+          // Mendecode file audio di browser
+          const buffer = await state.audioContext.decodeAudioData(arrayBuffer);
+          state.audioBuffer = buffer;
+          state.fileDuration = buffer.duration;
+
+          document.getElementById('info-duration').innerText = formatSeconds(buffer.duration);
+          
+          // Estimasikan jumlah potongan (chunk)
+          // File di atas 25MB wajib dipotong. Format WAV 16kHz Mono 16-bit berukuran ~1.92 MB/menit.
+          // Jadi kita potong per 10 menit (600 detik) yang dijamin berukuran ~19.2 MB, aman di bawah limit 25MB Groq.
+          const maxChunkDuration = 600; // 10 menit
+          let estimateChunks = 1;
+
+          if (buffer.duration > 750) { // 12.5 menit diijinkan tanpa potongan, lebih dari itu wajib potong
+            estimateChunks = Math.ceil(buffer.duration / maxChunkDuration);
+            document.getElementById('info-chunk-estimate').innerHTML = `
+              <span class="text-amber-400 font-bold">${estimateChunks} Potongan (Smart Split > 25MB)</span>
+            `;
+            logToConsole(`[ANALISIS] Audio berdurasi panjang (${formatSeconds(buffer.duration)}). Diperlukan ${estimateChunks} potongan agar mematuhi free-tier Groq.`);
+          } else {
+            document.getElementById('info-chunk-estimate').innerHTML = `
+              <span class="text-emerald-400 font-bold">1 Potongan (Aman < 25MB)</span>
+            `;
+            logToConsole(`[ANALISIS] Berkas audio aman ditranskripsi sekaligus tanpa pemotongan.`);
+          }
+
+          toggleStartButtonState();
+        } catch (err) {
+          logToConsole(`[ERROR] Gagal memproses decoding audio: ${err.message}. Beberapa format M4A berlisensi tinggi memerlukan browser modern.`);
+          showToast('Dekoding audio lokal gagal. Coba format MP3/WAV standar.', 'error');
+          document.getElementById('info-duration').innerText = 'Dekoding Gagal';
+          document.getElementById('info-chunk-estimate').innerText = 'Tidak bisa ditiadakan';
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    function toggleStartButtonState() {
+      const btn = document.getElementById('btn-start');
+      const hasKeys = state.apiKeys.some(k => k.status === 'active');
+      const hasBuffer = state.audioBuffer !== null;
+
+      if (hasKeys && hasBuffer && !state.isProcessing) {
+        btn.disabled = false;
+        btn.className = "flex-1 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-slate-950 text-sm font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-[0.99] cursor-pointer";
+      } else {
+        btn.disabled = true;
+        btn.className = "flex-1 bg-slate-800 text-slate-500 cursor-not-allowed text-sm font-semibold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2";
+      }
+    }
+
+    // === ALGORITMA SMART CHUNKING BERDASARKAN DETEKSI KESUNYIAN (RMS) ===
+    function sliceAudioBufferSmartly(audioBuffer) {
+      const duration = audioBuffer.duration;
+      const chunks = [];
+      const idealChunkDuration = 600; // 10 menit
+      const maxNoSplitDuration = 750; // 12.5 menit (di bawah ini aman tanpa split)
+
+      if (duration <= maxNoSplitDuration) {
+        // Aman tanpa pemotongan
+        chunks.push({
+          id: 0,
+          start: 0,
+          end: duration,
+          status: 'pending',
+          blob: null,
+          text: '',
+          segments: []
+        });
+        return chunks;
+      }
+
+      let currentStart = 0;
+      let chunkIdx = 0;
+
+      while (currentStart < duration) {
+        let idealEnd = currentStart + idealChunkDuration;
+
+        if (idealEnd >= duration) {
+          chunks.push({
+            id: chunkIdx,
+            start: currentStart,
+            end: duration,
+            status: 'pending',
+            blob: null,
+            text: '',
+            segments: []
+          });
+          break;
+        }
+
+        // Cari letak kesunyian di dekat idealEnd
+        // Jendela pencarian selebar 40 detik (20 detik sebelum & sesudah target)
+        const bestSplitPoint = findSilenceTime(audioBuffer, idealEnd, 40);
+        
+        chunks.push({
+          id: chunkIdx,
+          start: currentStart,
+          end: bestSplitPoint,
+          status: 'pending',
+          blob: null,
+          text: '',
+          segments: []
+        });
+
+        currentStart = bestSplitPoint;
+        chunkIdx++;
+      }
+
+      return chunks;
+    }
+
+    // Mendeteksi area energi terkecil (RMS) untuk split
+    function findSilenceTime(audioBuffer, targetTime, searchWindowSeconds = 40) {
+      const sampleRate = audioBuffer.sampleRate;
+      const channelData = audioBuffer.getChannelData(0); // Gunakan channel mono 1
+      
+      const startTime = Math.max(0, targetTime - searchWindowSeconds / 2);
+      const endTime = Math.min(audioBuffer.duration, targetTime + searchWindowSeconds / 2);
+      
+      const startSample = Math.floor(startTime * sampleRate);
+      const endSample = Math.floor(endTime * sampleRate);
+      
+      const blockSize = Math.floor(0.1 * sampleRate); // Analisis per 100ms
+      let minRms = Infinity;
+      let bestTime = targetTime; // Fallback jika tidak ada area sunyi ekstrem
+
+      for (let i = startSample; i < endSample - blockSize; i += blockSize) {
+        let sum = 0;
+        for (let j = 0; j < blockSize; j++) {
+          const val = channelData[i + j];
+          sum += val * val;
+        }
+        
+        const rms = Math.sqrt(sum / blockSize);
+
+        // Mencari nilai energi terendah
+        if (rms < minRms) {
+          minRms = rms;
+          // Lokasi tengah area sunyi 100ms
+          bestTime = (i + blockSize / 2) / sampleRate;
+        }
+      }
+
+      return bestTime;
+    }
+
+    // === RESAMPLE KE 16KHZ MONO & BUILD WAV BLOB ===
+    async function extractChunkTo16kHzWav(audioBuffer, start, end) {
+      const duration = end - start;
+      
+      // Gunakan OfflineAudioContext untuk downsample otomatis dan cepat
+      const offlineCtx = new OfflineAudioContext(
+        1, // Mono
+        Math.floor(duration * 16000), // Panjang total sampel
+        16000 // Sample Rate Standar Whisper
+      );
+
+      // Create BufferSource
+      const source = offlineCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      
+      // Set schedule bermain pada offset yang ditentukan
+      source.start(0, start, duration);
+      source.connect(offlineCtx.destination);
+
+      // Mulai proses rendering resample asinkron
+      const resampledBuffer = await offlineCtx.startRendering();
+      
+      // Bungkus PCM float data ke dalam wadah WAV 16-bit PCM
+      return buildWavContainer(resampledBuffer);
+    }
+
+    function buildWavContainer(buffer) {
+      const sampleRate = buffer.sampleRate;
+      const samples = buffer.getChannelData(0);
+      const bufferArr = new ArrayBuffer(44 + samples.length * 2);
+      const view = new DataView(bufferArr);
+
+      /* RIFF identifier */
+      writeString(view, 0, 'RIFF');
+      /* File length */
+      view.setUint32(4, 36 + samples.length * 2, true);
+      /* RIFF type */
+      writeString(view, 8, 'WAVE');
+      /* Format chunk identifier */
+      writeString(view, 12, 'fmt ');
+      /* Format chunk length */
+      view.setUint32(16, 16, true);
+      /* Sample format (1 untuk PCM) */
+      view.setUint16(20, 1, true);
+      /* Channel count (1 untuk Mono) */
+      view.setUint16(22, 1, true);
+      /* Sample rate */
+      view.setUint32(24, sampleRate, true);
+      /* Byte rate (sampleRate * blockAlign) */
+      view.setUint32(28, sampleRate * 2, true);
+      /* Block align (channels * bytes/sample) */
+      view.setUint16(32, 2, true);
+      /* Bits per sample (16-bit) */
+      view.setUint16(34, 16, true);
+      /* Data chunk identifier */
+      writeString(view, 36, 'data');
+      /* Data chunk length */
+      view.setUint32(40, samples.length * 2, true);
+
+      // Tulis sampel PCM 16-bit
+      let offset = 44;
+      for (let i = 0; i < samples.length; i++, offset += 2) {
+        let s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    function writeString(view, offset, string) {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    }
+
+    // === ROTASI KEY & HIT API GROQ ===
+    async function getNextActiveKey() {
+      const now = Date.now();
+      
+      const activeKeys = state.apiKeys.filter(k => {
+        if (k.status === 'cooldown' && now >= k.cooldownUntil) {
+          k.status = 'active';
+        }
+        return k.status === 'active';
+      });
+
+      if (activeKeys.length === 0) {
+        const cooling = state.apiKeys.filter(k => k.status === 'cooldown');
+        if (cooling.length > 0) {
+          cooling.sort((a,b) => a.cooldownUntil - b.cooldownUntil);
+          const secondsLeft = Math.ceil((cooling[0].cooldownUntil - now) / 1000);
+          throw new Error(`Semua kunci sedang cooldown. Menunggu kunci pertama dalam ${secondsLeft} detik...`);
+        } else {
+          throw new Error('Tidak ada API Key aktif yang siap digunakan.');
+        }
+      }
+
+      // Pastikan index rotasi berada di dalam batas
+      state.currentKeyIndex = state.currentKeyIndex % state.apiKeys.length;
+
+      // Cari kunci aktif terdekat mulai dari index terakhir
+      for (let i = 0; i < state.apiKeys.length; i++) {
+        const idx = (state.currentKeyIndex + i) % state.apiKeys.length;
+        const target = state.apiKeys[idx];
+        if (target.status === 'active') {
+          state.currentKeyIndex = (idx + 1) % state.apiKeys.length; // geser pointer untuk request selanjutnya
+          return target;
+        }
+      }
+
+      return activeKeys[0];
+    }
+
+    // === ENGINE UTAMA PROSES TRANSKRIPSI ===
+    async function handleStartTranscription() {
+      if (state.isProcessing || !state.audioBuffer) return;
+      
+      state.isProcessing = true;
+      state.masterSegments = [];
+      toggleStartButtonState();
+      
+      document.getElementById('chunk-tracker-container').classList.remove('hidden');
+      logToConsole(`[START] Memulai pemrosesan transkripsi...`);
+
+      try {
+        // 1. Ekstraksi Chunks Pintar
+        logToConsole(`[PROCESS] Menjalankan segmentasi audio berdasarkan area sunyi (Silence Detection)...`);
+        state.chunks = sliceAudioBufferSmartly(state.audioBuffer);
+        renderChunkTracker();
+
+        // 2. Lakukan iterasi pengolahan chunk
+        for (let i = 0; i < state.chunks.length; i++) {
+          const chunk = state.chunks[i];
+          updateChunkStatusUI(i, 'processing', 'Menyiapkan berkas WAV...');
+          
+          logToConsole(`[COMPRESS] Potongan #${i+1}: Melakukan downsampling 16kHz & WAV wrapping...`);
+          const wavBlob = await extractChunkTo16kHzWav(state.audioBuffer, chunk.start, chunk.end);
+          chunk.blob = wavBlob;
+          
+          logToConsole(`[COMPRESS] Potongan #${i+1}: Kompresi berhasil. Ukuran Chunk WAV: ${formatBytes(wavBlob.size)}.`);
+          
+          // Mulai transkripsi berkas WAV ke Groq
+          let success = false;
+          let attempts = 0;
+          const maxRetries = state.apiKeys.length * 2; // Batas toleransi kegagalan rotasi
+
+          while (!success && attempts < maxRetries) {
+            let activeKeyObj;
+            try {
+              activeKeyObj = await getNextActiveKey();
+            } catch (err) {
+              updateChunkStatusUI(i, 'failed', 'Semua key diblokir sementara');
+              logToConsole(`[WAIT] Terhenti: ${err.message}`);
+              await new Promise(r => setTimeout(r, 3000));
+              attempts++;
+              continue;
+            }
+
+            updateChunkStatusUI(i, 'processing', `Mengirim via API Key ${maskKey(activeKeyObj.key)}...`);
+            logToConsole(`[API] Mengirim Potongan #${i+1}/${state.chunks.length} via Groq Key [${maskKey(activeKeyObj.key)}]...`);
+
+            try {
+              const result = await requestGroqWhisper(wavBlob, activeKeyObj.key);
+              
+              chunk.text = result.text;
+              chunk.segments = result.segments || [];
+              chunk.status = 'completed';
+              success = true;
+              
+              updateChunkStatusUI(i, 'completed', 'Transkripsi Selesai');
+              logToConsole(`[SUKSES] Potongan #${i+1} berhasil ditranskrip.`);
+              
+              // Proses real-time penggabungan segment SRT
+              appendSegmentsToGlobal(chunk.segments, chunk.start);
+            } catch (err) {
+              attempts++;
+              if (err.status === 429) {
+                activeKeyObj.status = 'cooldown';
+                activeKeyObj.cooldownUntil = Date.now() + 60000; // Istirahatkan 60 detik
+                updateKeyUI();
+                logToConsole(`[RATE_LIMIT] API Key ${maskKey(activeKeyObj.key)} terkena 429. Mengistirahatkan kunci...`);
+              } else if (err.status === 401) {
+                activeKeyObj.status = 'failed';
+                updateKeyUI();
+                logToConsole(`[ERROR] API Key ${maskKey(activeKeyObj.key)} tidak valid (401).`);
+              } else {
+                logToConsole(`[ERROR] Gagal pada Key ${maskKey(activeKeyObj.key)}: ${err.message}`);
+              }
+            }
+          }
+
+          if (!success) {
+            throw new Error(`Gagal menyelesaikan transkripsi untuk potongan #${i+1} setelah beberapa kali percobaan rotasi kunci.`);
+          }
+        }
+
+        // Semua Chunk selesai
+        logToConsole(`[FINISHED] Transkripsi seluruh file berhasil digabungkan.`);
+        showToast('Transkripsi lengkap selesai!', 'success');
+        
+        // Aktifkan tombol Download
+        const btnDownload = document.getElementById('btn-download');
+        btnDownload.disabled = false;
+        btnDownload.className = "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 text-xs font-bold py-2.5 px-4 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/10 active:scale-[0.98] cursor-pointer";
+
+      } catch (err) {
+        logToConsole(`[FATAL] Proses transkripsi terhenti: ${err.message}`);
+        showToast(`Proses Gagal: ${err.message}`, 'error');
+      } finally {
+        state.isProcessing = false;
+        toggleStartButtonState();
+      }
+    }
+
+    // === GROQ API CALL ===
+    function requestGroqWhisper(blob, apiKey) {
+      return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('file', blob, 'audio.wav');
+        formData.append('model', 'whisper-large-v3');
+        formData.append('response_format', 'verbose_json');
+        
+        const lang = document.getElementById('lang-select').value;
+        if (lang) formData.append('language', lang);
+        
+        const temp = document.getElementById('temp-select').value;
+        formData.append('temperature', temp);
+
+        fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: formData
+        })
+        .then(async res => {
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            const msg = errBody.error?.message || `HTTP error! status: ${res.status}`;
+            const error = new Error(msg);
+            error.status = res.status;
+            throw error;
+          }
+          return res.json();
+        })
+        .then(data => resolve(data))
+        .catch(err => reject(err));
+      });
+    }
+
+    // === STITCHING SEGMENTS & REALTIME SRT COMPILING ===
+    function appendSegmentsToGlobal(segments, timeOffset) {
+      // Tambahkan offset waktu ke tiap segmen baru
+      const adjusted = segments.map(seg => ({
+        start: seg.start + timeOffset,
+        end: seg.end + timeOffset,
+        text: seg.text
+      }));
+
+      state.masterSegments.push(...adjusted);
+      
+      // Sort berdasarkan waktu mulai untuk jaminan sinkronisasi
+      state.masterSegments.sort((a,b) => a.start - b.start);
+
+      // Render ulang pratinjau teks SRT di browser
+      compileAndRenderSrt();
+    }
+
+    function compileAndRenderSrt() {
+      const preview = document.getElementById('srt-preview');
+      if (state.masterSegments.length === 0) {
+        preview.innerText = 'Menunggu data segmen...';
+        return;
+      }
+
+      let srtContent = '';
+      state.masterSegments.forEach((seg, idx) => {
+        const startStr = formatSrtTimestamp(seg.start);
+        const endStr = formatSrtTimestamp(seg.end);
+        srtContent += `${idx + 1}\n${startStr} --> ${endStr}\n${seg.text.trim()}\n\n`;
+      });
+
+      preview.innerText = srtContent;
+      // Auto scroll ke bawah pratinjau srt
+      const preContainer = preview.parentElement;
+      preContainer.scrollTop = preContainer.scrollHeight;
+    }
+
+    function formatSrtTimestamp(seconds) {
+      const hrs = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = Math.floor(seconds % 60);
+      const ms = Math.floor((seconds % 1) * 1000);
+      
+      return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
+    }
+
+    // === DOWNLOAD SRT FILE ===
+    function downloadSrt() {
+      const preview = document.getElementById('srt-preview').innerText;
+      if (!preview || preview.startsWith('Pratinjau SRT')) return;
+
+      const blob = new Blob([preview], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      
+      // Buat nama file srt yang sesuai
+      const baseName = state.fileName.substring(0, state.fileName.lastIndexOf('.')) || 'subtitel';
+      a.href = url;
+      a.download = `${baseName}.srt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      logToConsole(`[DOWNLOAD] File subtitle "${baseName}.srt" berhasil diunduh.`);
+      showToast('Berkas SRT berhasil diunduh!', 'success');
+    }
+
+    // === UI RENDERING CHUNKS PROGRESS ===
+    function renderChunkTracker() {
+      const list = document.getElementById('chunk-list');
+      list.innerHTML = '';
+
+      state.chunks.forEach((chunk, idx) => {
+        const duration = chunk.end - chunk.start;
+        const div = document.createElement('div');
+        div.id = `chunk-box-${idx}`;
+        div.className = 'bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 transition-all';
+        div.innerHTML = `
+          <div class="flex justify-between items-center text-xs">
+            <span class="font-bold text-slate-300">Potongan #${idx+1}</span>
+            <span id="chunk-status-badge-${idx}" class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-medium border border-slate-700">Menunggu Antrean</span>
+          </div>
+          <div class="text-[11px] text-slate-500 flex justify-between">
+            <span>Mulai: ${formatSeconds(chunk.start)} - Selesai: ${formatSeconds(chunk.end)}</span>
+            <span class="font-medium text-slate-400">Durasi: ${Math.round(duration)}s</span>
+          </div>
+          <p id="chunk-status-msg-${idx}" class="text-[11px] text-slate-400 italic">Antrean siap diproses.</p>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function updateChunkStatusUI(idx, status, message) {
+      const box = document.getElementById(`chunk-box-${idx}`);
+      const badge = document.getElementById(`chunk-status-badge-${idx}`);
+      const msg = document.getElementById(`chunk-status-msg-${idx}`);
+      
+      if (!box || !badge || !msg) return;
+
+      msg.innerText = message;
+
+      if (status === 'processing') {
+        box.className = 'bg-sky-500/5 border border-sky-500/20 rounded-xl p-3 flex flex-col gap-2 transition-all';
+        badge.className = 'text-[10px] bg-sky-500/15 text-sky-400 px-2 py-0.5 rounded font-medium border border-sky-500/20 animate-pulse';
+        badge.innerText = 'Memproses';
+      } else if (status === 'completed') {
+        box.className = 'bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3 flex flex-col gap-2 transition-all';
+        badge.className = 'text-[10px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded font-medium border border-emerald-500/20';
+        badge.innerText = 'Selesai';
+      } else if (status === 'failed') {
+        box.className = 'bg-rose-500/5 border border-rose-500/20 rounded-xl p-3 flex flex-col gap-2 transition-all';
+        badge.className = 'text-[10px] bg-rose-500/15 text-rose-400 px-2 py-0.5 rounded font-medium border border-rose-500/20';
+        badge.innerText = 'Gagal';
+      }
+    }
+
+    // === UTILITY UTILS ===
+    function logToConsole(message) {
+      const log = document.getElementById('terminal-log');
+      const time = new Date().toLocaleTimeString('id-ID');
+      
+      const p = document.createElement('p');
+      p.className = 'leading-relaxed hover:bg-slate-900/40 rounded px-1 py-0.5';
+      
+      if (message.startsWith('[ERROR]') || message.startsWith('[FATAL]')) {
+        p.innerHTML = `<span class="text-rose-500 font-semibold">[${time}] ${message}</span>`;
+      } else if (message.startsWith('[SUKSES]')) {
+        p.innerHTML = `<span class="text-emerald-400 font-semibold">[${time}] ${message}</span>`;
+      } else if (message.startsWith('[START]') || message.startsWith('[FINISHED]')) {
+        p.innerHTML = `<span class="text-indigo-400 font-bold">[${time}] ${message}</span>`;
+      } else if (message.startsWith('[RATE_LIMIT]')) {
+        p.innerHTML = `<span class="text-amber-500 font-semibold">[${time}] ${message}</span>`;
+      } else {
+        p.innerHTML = `<span class="text-sky-400">[${time}]</span> <span class="text-slate-300">${message}</span>`;
+      }
+
+      log.appendChild(p);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function clearConsole() {
+      document.getElementById('terminal-log').innerHTML = '<p class="text-slate-500 italic">[SYSTEM] Log dihapus. Menunggu aktivitas baru...</p>';
+    }
+
+    function resetState() {
+      state.selectedFile = null;
+      state.audioBuffer = null;
+      state.fileDuration = 0;
+      state.fileSize = 0;
+      state.chunks = [];
+      state.isProcessing = false;
+      state.masterSegments = [];
+
+      document.getElementById('file-input').value = '';
+      document.getElementById('file-info-panel').classList.add('hidden');
+      document.getElementById('chunk-tracker-container').classList.add('hidden');
+      document.getElementById('btn-reset').classList.add('hidden');
+      document.getElementById('srt-preview').innerText = 'Pratinjau SRT kosong. Unggah file audio dan mulai transkripsi.';
+      
+      const btnDownload = document.getElementById('btn-download');
+      btnDownload.disabled = true;
+      btnDownload.className = "bg-slate-800 text-slate-500 cursor-not-allowed text-xs font-semibold py-2.5 px-4 rounded-xl transition-all flex items-center gap-2";
+
+      toggleStartButtonState();
+      logToConsole('[SYSTEM] Workspace berhasil dibersihkan.');
+    }
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function formatSeconds(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}m ${s}s`;
+    }
+
+    // === TAMPILAN POPUP TOAST ===
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      let themeClass = 'bg-sky-600 border-sky-800';
+      if (type === 'error') themeClass = 'bg-rose-600 border-rose-800';
+      if (type === 'success') themeClass = 'bg-emerald-600 border-emerald-800';
+
+      toast.className = `p-4 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 transform translate-y-2 opacity-0 text-white max-w-md border-l-4 ${themeClass}`;
+      toast.innerHTML = `
+        <div class="flex-1 font-medium text-xs leading-relaxed">${message}</div>
+        <button class="text-white/80 hover:text-white focus:outline-none" onclick="this.parentElement.remove()">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      `;
+
+      container.appendChild(toast);
+      
+      // Animasi masuk
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 50);
+
+      // Otomatis hilang dalam 5 detik
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => {
+          toast.remove();
+        }, 300);
+      }, 5000);
+    }
+  </script>
+</body>
+</html>
